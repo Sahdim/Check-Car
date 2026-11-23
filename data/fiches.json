@@ -1,0 +1,23 @@
+{
+  "_comment": "Fiches techniques. Clé = marque|modèle|moteur en minuscules sans accents (ex : renault|clio iv|1.5 dci). Les fiches avec \"exemple\": true sont affichées avec la mention « Exemple, données à venir ». Remplacer par des données vérifiées et mettre \"exemple\": false.",
+  "fiches": {
+    "renault|clio iv|1.5 dci": {
+      "exemple": true,
+      "huile": { "viscosite": "5W-30", "norme": "RN0720", "quantite": "4,5 L avec filtre" },
+      "pneus": "185/65 R15",
+      "pression": "AV 2,3 bar · AR 2,1 bar",
+      "distribution": { "type": "Courroie", "intervalle": "120 000 km ou 5 ans" },
+      "couple_roues": "105 N·m",
+      "batterie": "12 V 70 Ah"
+    },
+    "peugeot|208|1.2 puretech": {
+      "exemple": true,
+      "huile": { "viscosite": "0W-30", "norme": "PSA B71 2312", "quantite": "3,5 L avec filtre" },
+      "pneus": "195/55 R16",
+      "pression": "AV 2,4 bar · AR 2,2 bar",
+      "distribution": { "type": "Courroie dans l'huile", "intervalle": "100 000 km ou 6 ans" },
+      "couple_roues": "100 N·m",
+      "batterie": "12 V 60 Ah"
+    }
+  }
+}

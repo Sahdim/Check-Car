@@ -1,0 +1,88 @@
+-- Carnet Garage : base de données Supabase
+-- À coller en entier dans Supabase > SQL Editor > New query, puis « Run ».
+
+create extension if not exists pgcrypto;
+
+-- Table des véhicules : chaque véhicule appartient à un garagiste (garage_id = son compte)
+create table if not exists public.vehicles (
+  id              uuid primary key default gen_random_uuid(),
+  garage_id       uuid not null references auth.users (id) on delete cascade default auth.uid(),
+  owner           text not null default '',
+  phone           text not null default '',
+  brand           text not null default '',
+  model           text not null default '',
+  engine          text not null default '',
+  hp              integer,
+  body            text not null default '',
+  plate           text not null default '',
+  vin             text not null default '',
+  year            integer,
+  km              integer not null default 0,
+  interval_km     integer not null default 15000,  -- km entre deux vidanges
+  interval_months integer not null default 12,     -- mois entre deux vidanges
+  ct              date,                            -- prochain contrôle technique
+  code            text not null unique,            -- code client XXXX-XXXX
+  items           jsonb not null default '[]'::jsonb, -- historique des interventions
+  photo_cg        text,                            -- photo de la carte grise (base64)
+  example         boolean not null default false,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  constraint code_format check (code ~ '^[A-Z0-9]{4}-[A-Z0-9]{4}$')
+);
+
+create index if not exists vehicles_garage_idx on public.vehicles (garage_id);
+
+-- Met à jour updated_at à chaque modification
+create or replace function public.touch_updated_at() returns trigger
+language plpgsql as $$
+begin
+  new.updated_at := now();
+  return new;
+end $$;
+
+drop trigger if exists vehicles_touch on public.vehicles;
+create trigger vehicles_touch before update on public.vehicles
+for each row execute function public.touch_updated_at();
+
+-- Sécurité : chaque garagiste ne voit et ne modifie QUE ses véhicules
+alter table public.vehicles enable row level security;
+
+drop policy if exists "garage lit ses vehicules" on public.vehicles;
+create policy "garage lit ses vehicules" on public.vehicles
+  for select to authenticated using (garage_id = auth.uid());
+
+drop policy if exists "garage ajoute ses vehicules" on public.vehicles;
+create policy "garage ajoute ses vehicules" on public.vehicles
+  for insert to authenticated with check (garage_id = auth.uid());
+
+drop policy if exists "garage modifie ses vehicules" on public.vehicles;
+create policy "garage modifie ses vehicules" on public.vehicles
+  for update to authenticated using (garage_id = auth.uid()) with check (garage_id = auth.uid());
+
+drop policy if exists "garage supprime ses vehicules" on public.vehicles;
+create policy "garage supprime ses vehicules" on public.vehicles
+  for delete to authenticated using (garage_id = auth.uid());
+
+-- Accès client : avec son code, le client voit UNIQUEMENT son véhicule.
+-- SECURITY DEFINER = la fonction passe outre la sécurité ci-dessus, mais ne renvoie
+-- qu'une ligne précise, sans garage_id, ni téléphone, ni photo de carte grise (adresse du titulaire).
+create or replace function public.get_vehicle_by_code(code text)
+returns json
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select json_build_object(
+    'id', v.id, 'owner', v.owner, 'brand', v.brand, 'model', v.model, 'engine', v.engine,
+    'hp', v.hp, 'body', v.body, 'plate', v.plate, 'vin', v.vin, 'year', v.year, 'km', v.km,
+    'interval_km', v.interval_km, 'interval_months', v.interval_months, 'ct', v.ct,
+    'code', v.code, 'items', v.items, 'example', v.example
+  )
+  from public.vehicles v
+  where v.code = upper(trim(get_vehicle_by_code.code))
+  limit 1;
+$$;
+
+revoke all on function public.get_vehicle_by_code(text) from public;
+grant execute on function public.get_vehicle_by_code(text) to anon, authenticated;
