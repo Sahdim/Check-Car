@@ -1,0 +1,30 @@
+workflows:
+  ios-ipa:
+    name: Check & Car iPhone
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: latest
+      node: 22
+      cocoapods: default
+    scripts:
+      - name: Installer les dependances
+        script: npm ci
+      - name: Generer le projet iPhone
+        script: npx expo prebuild --platform ios --no-install --clean
+      - name: Installer les pods
+        script: cd ios && pod install
+      - name: Compiler sans signature
+        script: |
+          cd ios
+          WS=$(ls -d *.xcworkspace | head -1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+      - name: Fabriquer le fichier ipa
+        script: |
+          cd ios
+          APP=$(ls -d build/Build/Products/Release-iphoneos/*.app | head -1)
+          rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
+          zip -qr ../CheckAndCar.ipa Payload
+    artifacts:
+      - CheckAndCar.ipa
