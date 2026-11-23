@@ -20,7 +20,7 @@ export default function Accueil() {
       <ScrollView contentContainerStyle={{ padding: 20, gap: 16, flexGrow: 1, justifyContent: 'center' }}>
         <View style={{ alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <Image source={require('@/assets/images/icon.png')} style={{ width: 96, height: 96, borderRadius: 22 }} />
-          <Text style={T.large}>Carnet Garage</Text>
+          <Text style={T.large}>Check & Car</Text>
           <Text style={[T.sub, { textAlign: 'center', fontSize: 16 }]}>Le carnet d’entretien de tes véhicules, toujours dans la poche.</Text>
         </View>
 

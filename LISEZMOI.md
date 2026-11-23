@@ -1,4 +1,4 @@
-# Carnet Garage (appli mobile iPhone + Android)
+# Check & Car (appli mobile iPhone + Android)
 
 Appli faite avec Expo (React Native). Elle s’ouvre dans **Expo Go** sur iPhone et Android.
 

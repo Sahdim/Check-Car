@@ -45,7 +45,7 @@ export function VehicleDetail({ v, garage, readOnly, onSave, onDelete }: Props) 
     }
   };
 
-  const shareMsg = 'Voici le code de ton carnet d’entretien Carnet Garage : ' + v.code;
+  const shareMsg = 'Voici le code de ton carnet d’entretien Check & Car : ' + v.code;
   const copyCode = async () => {
     await Clipboard.setStringAsync(v.code);
     tap('success');

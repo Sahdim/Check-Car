@@ -52,7 +52,7 @@ export function pdfHtml(v: Vehicle, g: Garage) {
       : '<p>Aucune intervention enregistrée.</p>') +
     (next ? '<div class="al"><b>Prochains entretiens</b><br>' + next + '</div>' : '') +
     '<div class="sign">Carnet tenu par <b>' + esc(tenu) + '</b>' + (g.phone ? ' · ' + esc(g.phone) : '') + '</div>' +
-    '<footer>Document généré avec Carnet Garage.</footer></body></html>'
+    '<footer>Document généré avec Check &amp; Car.</footer></body></html>'
   );
 }
 

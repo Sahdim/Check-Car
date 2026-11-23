@@ -1,4 +1,4 @@
--- Carnet Garage : base de données Supabase
+-- Check & Car : base de données Supabase
 -- À coller en entier dans Supabase > SQL Editor > New query, puis « Run ».
 
 create extension if not exists pgcrypto;

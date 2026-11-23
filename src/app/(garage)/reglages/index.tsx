@@ -148,7 +148,7 @@ export default function Reglages() {
       </Card>
 
       <View style={{ alignItems: 'center', marginTop: 10, gap: 2 }}>
-        <Text style={T.tiny}>Carnet Garage {Constants.expoConfig?.version || ''}</Text>
+        <Text style={T.tiny}>Check & Car {Constants.expoConfig?.version || ''}</Text>
         <Text style={T.tiny}>
           {vehicles.length} véhicule{vehicles.length > 1 ? 's' : ''} · {vehicles.reduce((n, v) => n + v.items.length, 0)} interventions
         </Text>

@@ -11,8 +11,8 @@ import { today } from './utils';
 export async function exportBackup(vehicles: Vehicle[], garage: Garage) {
   // les photos sont mises dans le fichier (base64) pour pouvoir les retrouver sur un autre téléphone
   const vs = await Promise.all(vehicles.map(async v => ({ ...v, photoCg: await toDataUri(v.photoCg) })));
-  const json = JSON.stringify({ app: 'Carnet Garage', version: 3, date: today(), garage, vehicles: vs }, null, 1);
-  const name = 'carnet-garage-' + today() + '.json';
+  const json = JSON.stringify({ app: 'Check & Car', version: 3, date: today(), garage, vehicles: vs }, null, 1);
+  const name = 'check-and-car-' + today() + '.json';
   if (Platform.OS === 'web') {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
@@ -24,7 +24,7 @@ export async function exportBackup(vehicles: Vehicle[], garage: Garage) {
   if (f.exists) f.delete();
   f.create();
   f.write(json);
-  await Sharing.shareAsync(f.uri, { mimeType: 'application/json', UTI: 'public.json', dialogTitle: 'Sauvegarde Carnet Garage' });
+  await Sharing.shareAsync(f.uri, { mimeType: 'application/json', UTI: 'public.json', dialogTitle: 'Sauvegarde Check & Car' });
 }
 
 /** Ouvre un fichier de sauvegarde. Renvoie null si annulé. Accepte aussi les sauvegardes de la version Windows. */
@@ -34,7 +34,7 @@ export async function pickBackup(): Promise<{ vehicles: Vehicle[]; garage?: Gara
   const a = r.assets[0];
   const text = Platform.OS === 'web' ? await (await fetch(a.uri)).text() : await new File(a.uri).text();
   const d = JSON.parse(text);
-  if (!d || !Array.isArray(d.vehicles)) throw new Error('Ce fichier n’est pas une sauvegarde Carnet Garage');
+  if (!d || !Array.isArray(d.vehicles)) throw new Error('Ce fichier n’est pas une sauvegarde Check & Car');
   const garage = d.garage || d.settings?.garage;
   return { vehicles: d.vehicles.map(upgradeVehicle), garage };
 }
