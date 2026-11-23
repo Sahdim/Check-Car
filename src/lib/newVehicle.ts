@@ -12,6 +12,7 @@ export const mkVehicle = (): Vehicle => ({
   hp: 0,
   body: '',
   plate: '',
+  dept: '',
   vin: '',
   year: 0,
   km: 0,
@@ -20,4 +21,6 @@ export const mkVehicle = (): Vehicle => ({
   ct: '',
   code: mkCode(),
   items: [],
+  docs: [],
+  dtc: [],
 });

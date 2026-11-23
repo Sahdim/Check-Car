@@ -4,10 +4,12 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { Btn, Card, Chip, Field, Row, Screen, T, tap } from '@/components/ui';
+import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { CarteGriseReview, type CgValues } from '@/components/CarteGriseReview';
+import { Btn, Card, Chip, Field, notify, Row, Screen, T, tap } from '@/components/ui';
+import { PlaqueFR } from '@/components/PlaqueFR';
 import { mkVehicle } from '@/lib/newVehicle';
-import { lireCarteGrise } from '@/lib/ocr';
+import { lireCarteGrise, type CarteGriseLue } from '@/lib/ocr';
 import { deletePhoto, keepPhoto } from '@/lib/photos';
 import { useStore, useVehicle } from '@/lib/store';
 import { C, R } from '@/lib/theme';
@@ -15,11 +17,6 @@ import type { Vehicle } from '@/lib/types';
 import { BODIES, fmtKm, fmtPlate, fromFr, guessBrand, maskDate, maskPlate, MARQUES, newVehicleId, norm, normBrand, toFr } from '@/lib/utils';
 
 const num = (s: string) => s.replace(/[^\d]/g, '');
-
-const notify = (title: string, msg?: string) => {
-  if (Platform.OS === 'web') window.alert(msg ? title + '\n' + msg : title);
-  else Alert.alert(title, msg);
-};
 
 export default function VehiculeForm() {
   const { id, km: kmOnly } = useLocalSearchParams<{ id?: string; km?: string }>();
@@ -34,6 +31,7 @@ export default function VehiculeForm() {
   const [hp, setHp] = useState(e.hp ? String(e.hp) : '');
   const [body, setBody] = useState(e.body || '');
   const [plate, setPlate] = useState(e.plate || '');
+  const [dept, setDept] = useState(e.dept || '');
   const [year, setYear] = useState(e.year ? String(e.year) : '');
   const [km, setKm] = useState(e.km != null ? String(e.km) : '');
   const [vin, setVin] = useState(e.vin || '');
@@ -44,6 +42,9 @@ export default function VehiculeForm() {
   const [ct, setCt] = useState(toFr(e.ct || ''));
   const [photo, setPhoto] = useState(e.photoCg || '');
   const [busy, setBusy] = useState(false);
+  const [reading, setReading] = useState(false);
+  const [ocrMsg, setOcrMsg] = useState('');
+  const [lu, setLu] = useState<CarteGriseLue | null>(null);
   const [err, setErr] = useState('');
 
   const brandSuggestions = useMemo(() => {
@@ -72,19 +73,38 @@ export default function VehiculeForm() {
       const uri = r.assets[0].uri;
       setPhoto(uri);
       tap('success');
-      // Lecture automatique (pas disponible dans Expo Go : renvoie null pour l'instant)
-      const cg = await lireCarteGrise(uri);
-      if (cg) {
-        if (cg.plate && !plate) setPlate(fmtPlate(cg.plate));
-        if (cg.brand && !brand) setBrand(normBrand(cg.brand));
-        if (cg.model && !model) setModel(cg.model);
-        if (cg.vin && !vin) setVin(cg.vin);
-        if (cg.year && !year) setYear(String(cg.year));
-        if (cg.owner && !owner) setOwner(cg.owner);
+      // Lecture automatique sur le téléphone (null = indisponible ici : Expo Go ou web)
+      setOcrMsg('');
+      setReading(true);
+      try {
+        const cg = await lireCarteGrise(uri);
+        if (!cg) setOcrMsg('Lecture automatique indisponible ici. Remplis les champs en regardant la photo.');
+        else setLu(cg);
+      } catch {
+        setOcrMsg('Lecture impossible sur cette photo. Remplis les champs en regardant la photo.');
+      } finally {
+        setReading(false);
       }
     } catch (x: any) {
       notify('Photo impossible', x?.message);
     }
+  };
+
+  // le garagiste a validé ce qui a été lu : on remplit le formulaire
+  const applyCg = (x: CgValues) => {
+    if (x.plate) setPlate(x.plate);
+    if (x.dept) setDept(x.dept);
+    if (x.brand) setBrand(x.brand);
+    if (x.model) setModel(x.model);
+    if (x.engine) setEngine(x.engine);
+    if (x.hp) setHp(x.hp);
+    if (x.year) setYear(x.year);
+    if (x.vin) setVin(x.vin);
+    if (x.body) setBody(x.body);
+    if (x.owner) setOwner(x.owner);
+    setLu(null);
+    setOcrMsg('Formulaire rempli avec la carte grise : vérifie avant d’enregistrer.');
+    tap('success');
   };
 
   const save = async () => {
@@ -115,6 +135,7 @@ export default function VehiculeForm() {
             hp: +hp || 0,
             body,
             plate: fmtPlate(plate),
+            dept: dept.trim().toUpperCase(),
             year: +year || 0,
             km: +km || 0,
             vin: vin.trim().toUpperCase(),
@@ -159,6 +180,37 @@ export default function VehiculeForm() {
           </Card>
         ) : (
           <>
+            <Card style={{ gap: 12 }}>
+              <Text style={T.label}>Carte grise</Text>
+              {photo ? (
+                <View>
+                  <Image source={{ uri: photo }} style={{ width: '100%', aspectRatio: 1.45, borderRadius: 14, backgroundColor: C.card2 }} contentFit="cover" />
+                  <Pressable
+                    accessibilityLabel="Retirer la photo"
+                    onPress={() => setPhoto('')}
+                    style={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, padding: 4 }}>
+                    <Ionicons name="close" size={22} color="#fff" />
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={{ borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.sep, padding: 18, alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="document-text-outline" size={30} color={C.text3} />
+                  <Text style={[T.tiny, { textAlign: 'center' }]}>Prends la carte grise en photo : les champs se remplissent tout seuls (tu vérifies avant).</Text>
+                </View>
+              )}
+              {reading ? (
+                <Row gap={8} style={{ justifyContent: 'center' }}>
+                  <ActivityIndicator color={C.text2} />
+                  <Text style={T.sub}>Lecture de la carte grise…</Text>
+                </Row>
+              ) : null}
+              {ocrMsg ? <Text style={[T.tiny, { color: C.text2, textAlign: 'center' }]}>{ocrMsg}</Text> : null}
+              <Row gap={10}>
+                <Btn kind="secondary" small title="Prendre" icon="camera-outline" style={{ flex: 1 }} onPress={() => pickPhoto(true)} />
+                <Btn kind="secondary" small title="Choisir" icon="images-outline" style={{ flex: 1 }} onPress={() => pickPhoto(false)} />
+              </Row>
+            </Card>
+
             <Card style={{ gap: 14 }}>
               <Field label="Modèle et génération" value={model} onChangeText={onModel} placeholder="Clio IV, 308 II, Golf 7…" autoCapitalize="words" />
               <Field label="Marque" value={brand} onChangeText={setBrand} placeholder="Renault" autoCapitalize="words" autoCorrect={false} />
@@ -193,8 +245,18 @@ export default function VehiculeForm() {
                   style={{ flex: 3 }}
                   inputStyle={{ fontWeight: '700', letterSpacing: 1.2 }}
                 />
-                <Field label="Année" value={year} onChangeText={t => setYear(num(t).slice(0, 4))} keyboardType="number-pad" placeholder="2016" style={{ flex: 2 }} />
+                <Field
+                  label="Dépt"
+                  value={dept}
+                  onChangeText={t => setDept(t.toUpperCase().replace(/[^0-9AB]/g, '').slice(0, 3))}
+                  placeholder="33"
+                  autoCapitalize="characters"
+                  style={{ flex: 1 }}
+                />
               </Row>
+              {plate.trim() && !old && !photo ? <Text style={T.tiny}>Pour remplir tout seul, prends la carte grise en photo.</Text> : null}
+              {plate.trim() ? <PlaqueFR plate={fmtPlate(plate)} dept={dept} size="md" /> : null}
+              <Field label="Année" value={year} onChangeText={t => setYear(num(t).slice(0, 4))} keyboardType="number-pad" placeholder="2016" />
               <Field label="Kilométrage" value={km} onChangeText={t => setKm(num(t))} keyboardType="number-pad" placeholder="128400" />
               <Field label="VIN (facultatif)" value={vin} onChangeText={t => setVin(t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17))} placeholder="VF1…" autoCapitalize="characters" autoCorrect={false} />
             </Card>
@@ -214,33 +276,11 @@ export default function VehiculeForm() {
               <Field label="Prochain contrôle technique" value={ct} onChangeText={t => setCt(maskDate(t))} keyboardType="number-pad" placeholder="JJ/MM/AAAA (facultatif)" />
             </Card>
 
-            <Card style={{ gap: 12 }}>
-              <Text style={T.label}>Photo de la carte grise</Text>
-              {photo ? (
-                <View>
-                  <Image source={{ uri: photo }} style={{ width: '100%', aspectRatio: 1.45, borderRadius: 14, backgroundColor: C.card2 }} contentFit="cover" />
-                  <Pressable
-                    accessibilityLabel="Retirer la photo"
-                    onPress={() => setPhoto('')}
-                    style={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, padding: 4 }}>
-                    <Ionicons name="close" size={22} color="#fff" />
-                  </Pressable>
-                </View>
-              ) : (
-                <View style={{ borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.sep, padding: 18, alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="document-text-outline" size={30} color={C.text3} />
-                  <Text style={[T.tiny, { textAlign: 'center' }]}>Garde la carte grise avec le véhicule. Tu remplis les champs en la regardant.</Text>
-                </View>
-              )}
-              <Row gap={10}>
-                <Btn kind="secondary" small title="Prendre" icon="camera-outline" style={{ flex: 1 }} onPress={() => pickPhoto(true)} />
-                <Btn kind="secondary" small title="Choisir" icon="images-outline" style={{ flex: 1 }} onPress={() => pickPhoto(false)} />
-              </Row>
-            </Card>
           </>
         )}
 
         {err ? <Text style={{ color: C.red, fontSize: 15, textAlign: 'center' }}>{err}</Text> : null}
+        <CarteGriseReview data={lu} onCancel={() => setLu(null)} onApply={applyCg} />
         <Btn title={old ? 'Enregistrer' : 'Ajouter le véhicule'} icon="checkmark" loading={busy} onPress={save} style={{ marginTop: 4, borderRadius: R.btn }} />
       </Screen>
     </>

@@ -6,7 +6,8 @@ import { worstAlert } from '@/lib/alerts';
 import { C, R, levelColor } from '@/lib/theme';
 import type { Vehicle } from '@/lib/types';
 import { fmtKm, vSub, vTitle } from '@/lib/utils';
-import { Dot, Plate, PrioBadge, T, tap } from './ui';
+import { PlaqueFR } from './PlaqueFR';
+import { Dot, PrioBadge, T, tap } from './ui';
 
 export function VehicleRow({ v, showOwner = true }: { v: Vehicle; showOwner?: boolean }) {
   const w = worstAlert(v);
@@ -33,7 +34,7 @@ export function VehicleRow({ v, showOwner = true }: { v: Vehicle; showOwner?: bo
           </Text>
         ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <Plate plate={v.plate} />
+          <PlaqueFR plate={v.plate} dept={v.dept} size="sm" />
           <Text style={T.tiny}>{fmtKm(v.km)}</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

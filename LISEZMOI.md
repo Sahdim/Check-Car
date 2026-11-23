@@ -1,70 +1,102 @@
 # Check & Car (appli mobile iPhone + Android)
 
-Appli faite avec Expo (React Native). Elle s’ouvre dans **Expo Go** sur iPhone et Android.
+Appli faite avec Expo (React Native), compilée en vraie appli iPhone avec **Codemagic** (voir `codemagic.yaml`).
 
-## Lancer l’appli sur ton téléphone
+## Comment marche l’appli
 
-1. Installe **Expo Go** sur ton téléphone (App Store ou Play Store).
-2. Sur le PC, dans ce dossier : `npm install` (une seule fois), puis `npx expo start`.
-3. Un QR code s’affiche :
-   - iPhone : ouvre l’appareil photo et vise le QR code.
-   - Android : ouvre Expo Go → « Scan QR code ».
-4. Le téléphone et le PC doivent être sur le même Wi-Fi. Si ça ne marche pas : `npx expo start --tunnel`.
-
-Au premier lancement en mode garagiste, 2 véhicules « Exemple » sont créés. Tu peux les supprimer (bouton « Supprimer » en haut de la liste).
+- **Espace client** (à l’ouverture) : « Entre ton code ». Le client tape le code de 8 caractères donné par le garage.
+  Il peut suivre **plusieurs véhicules** (un code par véhicule) : écran « Mes véhicules », tirer vers le bas pour
+  rafraîchir, « Ajouter un véhicule », appui sur ⋯ pour retirer un véhicule de sa liste.
+- **Espace pro** : petit lien « Espace pro » en bas de l’écran client → connexion avec l’e-mail et le mot de passe du
+  compte garage (Supabase). Pas d’inscription dans l’appli. Une fois connecté, l’appli reste dans l’espace pro
+  (même après l’avoir fermée) jusqu’à **Réglages → Se déconnecter**.
+- Sans Supabase (pas de fichier `.env`), l’espace pro marche **en local** pour le développement (bouton
+  « Entrer dans l’espace pro (local) »). Avec Supabase, la connexion est **obligatoire**.
 
 ## Où est quoi
 
-- `src/app/` : les écrans (un fichier = un écran). `(garage)/` = onglets Véhicules, Clients, Atelier, Réglages ; `client/` = mode client ; `vehicule/[id].tsx` = fiche ; `vehicule-form.tsx` et `intervention.tsx` = formulaires.
-- `src/lib/db.ts` : la base de données (locale ou Supabase, même interface).
-- `src/lib/parts.ts` : la liste des éléments à cocher dans une intervention.
-- `src/lib/alerts.ts` : les rappels (vidange au km ou à la date, contrôle technique).
-- `src/lib/pdf.ts` : le carnet PDF pour la revente.
-- `src/lib/ocr.ts` : lecture de carte grise (vide pour l’instant, voir plus bas).
-- `data/fiches.json` : fiches techniques (2 exemples marqués `"exemple": true`).
-- `supabase/schema.sql` : la base en ligne.
+- `src/app/` : les écrans (un fichier = un écran).
+  - `client/` : espace client (`index` = Mes véhicules, `ajouter`, `[code]` = carnet d’un véhicule, `connexion` = Espace pro).
+  - `(garage)/` : onglets Véhicules, Clients, **Codes**, Atelier, Réglages.
+  - `vehicule/[id].tsx` = fiche ; `vehicule-form.tsx`, `intervention.tsx`, `code-releve.tsx` = formulaires.
+  - `nouveau-mot-de-passe.tsx` = ouvert par le lien de l’e-mail « Mot de passe oublié ».
+- `src/lib/store.tsx` : état de l’appli (connexion, véhicules, codes client).
+- `src/lib/db.ts` : la base (Supabase en ligne, ou téléphone en développement).
+- `src/lib/docs.ts` : documents (rapports de diagnostic).
+- `src/lib/ocr.ts` + `src/lib/carteGrise.ts` : lecture de la carte grise.
+- `src/lib/dtc.ts` + `src/lib/dtcData.ts` : codes défaut.
+- `src/lib/parts.ts` : éléments à cocher dans une intervention.
+- `src/components/PlaqueFR.tsx` : la plaque d’immatriculation.
+- `supabase/schema.sql` (tout) et `supabase/migration-002.sql` (mise à jour).
+- `tests/carteGrise.test.ts` : tests de la lecture de carte grise (`npm test`).
 
-## Brancher Supabase (base en ligne, pour que les clients voient leur carnet chez eux)
+## Supabase (base en ligne)
 
-Sans Supabase, tout reste sur le téléphone du garagiste (le code client ne marche que sur ce téléphone).
+Les variables sont dans `.env` (pour le PC) et dans `codemagic.yaml` (pour la compilation iPhone) :
+```
+EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
+```
+C’est la clé **publique** : elle peut être dans l’appli. Ne mets JAMAIS la clé « secret / service_role ».
 
-1. Crée un projet gratuit sur supabase.com.
-2. Dans le projet : **SQL Editor** → **New query** → colle tout le fichier `supabase/schema.sql` → **Run**.
-3. Dans **Project Settings → API** : copie l’**URL** et la clé **anon public**.
-4. Dans ce dossier, copie `.env.example` en `.env` et remplis :
-   ```
-   EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-   EXPO_PUBLIC_SUPABASE_ANON_KEY=ta_cle_anon
-   ```
-5. Relance `npx expo start --clear`.
-6. Dans l’appli : **Réglages → Compte en ligne → Se connecter** (ou « Créer mon compte »).
-   Puis **« Envoyer les véhicules du téléphone »** pour copier tes véhicules locaux en ligne.
+### Mise à jour de la base (à faire une fois)
 
-Sécurité : chaque garagiste ne voit que ses véhicules. Le client, avec son code, ne reçoit que son
-véhicule (sans téléphone ni photo de carte grise). Ne mets jamais la clé « service_role » dans l’appli.
+1. Supabase → **SQL Editor** → **New query**.
+2. Colle tout le fichier `supabase/migration-002.sql` → **Run**. (On peut le relancer sans risque.)
+   Il ajoute : les colonnes `docs`, `dtc`, `dept`, le dossier de stockage **rapports** (public, 10 Mo, PDF/JPEG/PNG)
+   et ses règles (seul le garage connecté peut envoyer ou supprimer dans SON dossier).
+3. Pour le lien « Mot de passe oublié » : **Authentication → URL Configuration → Redirect URLs** → ajoute
+   `checkandcar://**`. Sinon le lien de l’e-mail ne rouvre pas l’appli.
 
-Astuce : dans Supabase → Authentication → Providers → Email, tu peux désactiver « Confirm email »
-pour te connecter tout de suite après la création du compte.
+Projet neuf : coller `supabase/schema.sql` à la place (il contient tout).
 
-## Publier pour Expo Go (mise à jour à distance)
+### Sécurité
 
-Il faut un compte gratuit sur expo.dev (une seule fois) :
+- Chaque garage ne voit que ses véhicules.
+- Le client, avec son code, ne reçoit que son véhicule : jamais le téléphone, la photo de carte grise ni l’identifiant du garage.
+- Les documents ont un nom tiré au hasard (impossible à deviner). Le dossier est public en lecture : quelqu’un qui
+  a l’adresse exacte d’un document peut l’ouvrir (c’est ce qui permet au client de le voir sans compte).
+
+## Rapports de diagnostic
+
+Sur la fiche du véhicule → **Documents → Ajouter un rapport de diagnostic** (PDF ou photo, 10 Mo maximum).
+Rapport reçu par e-mail ? Sur l’iPhone : ouvre la pièce jointe → partager → **Enregistrer dans Fichiers**,
+puis dans l’appli « Choisir un PDF ». Pas besoin d’envoi par e-mail depuis l’appli.
+
+## Lecture de la carte grise (gratuite, sur le téléphone)
+
+Dans « Nouveau véhicule » → **Carte grise → Prendre / Choisir**. Le texte est lu sur le téléphone (rien n’est
+envoyé sur internet) avec le module **expo-text-extractor** (Vision d’Apple sur iPhone, ML Kit sur Android).
+L’écran « Voici ce que j’ai lu » permet de tout corriger avant de remplir le formulaire. Le nom du titulaire
+n’est repris que si tu coches la case.
+
+- Marche dans l’appli **compilée** (Codemagic). Dans Expo Go ou sur le web : « Lecture automatique indisponible ici ».
+- Taper seulement la plaque ne remplit rien (pas d’API payante).
+
+## Codes défaut (onglet Codes)
+
+Recherche par code (`P0420`, `p0420`, `0420`) ou par mot (`turbo`, `FAP`). Base de codes **génériques** SAE
+reprise de la version Windows. Pour un code absent (ou un code constructeur), l’appli explique seulement comment
+il se lit, sans inventer de signification. « Ajouter aux codes relevés » range le code sur la fiche (date, km, note).
+« Demander à Claude » copie un texte prêt à coller dans Claude (aucune IA dans l’appli, aucun abonnement).
+
+## Compiler l’appli iPhone (Codemagic)
+
+Pousse sur GitHub puis lance le workflow « Check & Car iPhone » sur Codemagic. Il fait `npx expo prebuild`,
+`pod install`, `xcodebuild` et fournit `CheckAndCar.ipa`.
+
+## Développer sur le PC
 
 ```
-npx eas-cli@latest login
-npx eas-cli@latest update:configure
-npx eas-cli@latest update --branch production --message "Nouvelle version"
+npm install
+npx expo start          (Expo Go : sans lecture de carte grise)
+npm test                (tests de la lecture de carte grise)
+npx tsc --noEmit        (vérification du code)
 ```
-
-Ensuite, l’appli publiée s’ouvre dans Expo Go depuis le lien ou le QR code affiché sur expo.dev.
-Pour une vraie appli installable (App Store / Play Store) : `npx eas-cli@latest build`.
 
 ## Limites connues
 
-- **Lecture automatique de la carte grise (OCR)** : impossible dans Expo Go (il faut un module natif).
-  La photo est gardée avec le véhicule ; la fonction `lireCarteGrise()` dans `src/lib/ocr.ts`
-  est prête à être branchée dans une version compilée (`eas build`).
-- **Grand titre qui rétrécit au défilement** et en-tête flouté : sur iPhone seulement (Android affiche un titre normal).
-- **Barre d’onglets floutée** sur iPhone ; sur Android elle est sombre presque opaque.
-- **Fiches techniques** : seulement 2 exemples, à remplacer par des données vérifiées dans `data/fiches.json`.
-- **Sauvegarde** : pense à faire « Réglages → Sauvegarde → Exporter » de temps en temps en mode local.
+- **Carte grise** : la lecture dépend de la photo (à plat, nette, sans reflet). Toujours vérifier l’écran « Voici ce que j’ai lu ».
+- **Hors connexion** : l’espace pro a besoin d’internet pour charger et enregistrer ; l’espace client affiche les dernières infos connues.
+- **Grand titre qui rétrécit au défilement** et en-tête flouté : sur iPhone seulement.
+- **Sauvegarde** : Réglages → Sauvegarde → Exporter (les documents restés sur le téléphone sont inclus dans le fichier).

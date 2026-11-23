@@ -1,9 +1,7 @@
-// Fiche véhicule (mode garagiste).
+// Fiche véhicule (espace pro).
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { Alert, Platform } from 'react-native';
-import { Empty, Screen, tap } from '@/components/ui';
+import { ask, Empty, notify, Screen, tap } from '@/components/ui';
 import { VehicleDetail } from '@/components/VehicleDetail';
-import { deletePhoto } from '@/lib/photos';
 import { useStore, useVehicle } from '@/lib/store';
 
 export default function Fiche() {
@@ -13,16 +11,16 @@ export default function Fiche() {
 
   const del = () => {
     if (!v) return;
-    const go = async () => {
-      await deleteVehicle(v.id);
-      deletePhoto(v.photoCg);
-      tap('success');
-      router.back();
-    };
-    const msg = (v.brand + ' ' + v.model + ' ' + v.plate).trim() + ' et tout son historique seront effacés.';
-    if (Platform.OS === 'web') {
-      if (window.confirm('Supprimer ce véhicule ?\n' + msg)) go();
-    } else Alert.alert('Supprimer ce véhicule ?', msg, [{ text: 'Annuler', style: 'cancel' }, { text: 'Supprimer', style: 'destructive', onPress: go }]);
+    const msg = (v.brand + ' ' + v.model + ' ' + v.plate).trim() + ', tout son historique et ses documents seront effacés.';
+    ask('Supprimer ce véhicule ?', msg, 'Supprimer', async () => {
+      try {
+        await deleteVehicle(v.id);
+        tap('success');
+        router.back();
+      } catch (e: any) {
+        notify('Suppression impossible', e?.message);
+      }
+    }, true);
   };
 
   return (

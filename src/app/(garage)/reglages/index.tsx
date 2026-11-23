@@ -1,28 +1,20 @@
 // Réglages : infos du garage (PDF), compte en ligne, sauvegarde, changer de mode.
-import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Platform, Text, View } from 'react-native';
-import { Btn, Card, Field, Row, Screen, SectionTitle, StatusPill, T, tap } from '@/components/ui';
+import { Text, View } from 'react-native';
+import { ask, Btn, Card, Field, notify, Row, Screen, SectionTitle, StatusPill, T, tap } from '@/components/ui';
 import { exportBackup, pickBackup } from '@/lib/backup';
 import { useStore } from '@/lib/store';
 import { supabaseEnabled } from '@/lib/supabase';
-import { C } from '@/lib/theme';
-
-const ask = (title: string, msg: string, ok: string, go: () => void, destructive = false) => {
-  if (Platform.OS === 'web') {
-    if (window.confirm(title + '\n' + msg)) go();
-  } else Alert.alert(title, msg, [{ text: 'Annuler', style: 'cancel' }, { text: ok, style: destructive ? 'destructive' : 'default', onPress: go }]);
-};
-const notify = (title: string, msg?: string) => {
-  if (Platform.OS === 'web') window.alert(msg ? title + '\n' + msg : title);
-  else Alert.alert(title, msg);
-};
 
 export default function Reglages() {
   const store = useStore();
-  const { settings, setGarage, vehicles, online, userEmail } = store;
+  const { settings, setGarage, vehicles, userEmail } = store;
+  const [localN, setLocalN] = useState(0);
+  useEffect(() => {
+    if (supabaseEnabled) store.localCount().then(setLocalN).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [g, setG] = useState(settings.garage);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState('');
@@ -52,7 +44,7 @@ export default function Reglages() {
       if (!b) return;
       ask(
         'Restaurer cette sauvegarde ?',
-        b.vehicles.length + ' véhicule(s) dans le fichier. Ils REMPLACENT les véhicules actuels' + (online ? ' (ajoutés à ton compte en ligne).' : '.'),
+        b.vehicles.length + ' véhicule(s) dans le fichier. Ils REMPLACENT les véhicules actuels' + (supabaseEnabled ? ' (envoyés dans ta base en ligne ; ceux qui y sont déjà sont mis à jour).' : '.'),
         'Restaurer',
         async () => {
           setBusy('import');
@@ -81,6 +73,7 @@ export default function Reglages() {
         const n = await store.pushLocalToOnline();
         tap('success');
         notify('Envoi terminé', n + ' véhicule(s) envoyé(s).');
+        setLocalN(0);
       } catch (e: any) {
         notify('Envoi impossible', e?.message);
       } finally {
@@ -88,11 +81,13 @@ export default function Reglages() {
       }
     });
 
-  const changeMode = () =>
-    ask('Changer de mode ?', 'Tu reviens à l’écran de choix (garagiste ou code client). Tes données restent enregistrées.', 'Changer', async () => {
-      await store.setMode(null);
-      router.replace('/accueil');
-    });
+  const logout = () =>
+    ask(
+      supabaseEnabled ? 'Se déconnecter ?' : 'Quitter l’espace pro ?',
+      supabaseEnabled ? 'Tes véhicules restent en ligne. Il faudra ton e-mail et ton mot de passe pour revenir.' : 'Tes véhicules restent sur ce téléphone.',
+      supabaseEnabled ? 'Se déconnecter' : 'Quitter',
+      () => store.signOut(), // l'appli revient toute seule à l'espace client
+    );
 
   return (
     <Screen>
@@ -105,28 +100,23 @@ export default function Reglages() {
         <Btn title={saved ? 'Enregistré' : 'Enregistrer'} icon={saved ? 'checkmark-circle' : 'save-outline'} disabled={!dirty && !saved} onPress={saveGarage} />
       </Card>
 
-      <SectionTitle>Compte en ligne</SectionTitle>
+      <SectionTitle>Compte</SectionTitle>
       <Card style={{ gap: 12 }}>
-        {!supabaseEnabled ? (
-          <>
-            <StatusPill level="warn" text="Mode local : données sur ce téléphone" />
-            <Text style={T.sub}>
-              Pour partager les carnets avec les clients sur leur propre téléphone, il faut brancher Supabase (voir le fichier LISEZMOI.md). En attendant, pense à faire des sauvegardes.
-            </Text>
-          </>
-        ) : online ? (
+        {supabaseEnabled ? (
           <>
             <StatusPill level="ok" text={'Connecté : ' + userEmail} />
-            <Text style={T.sub}>Tes véhicules sont enregistrés en ligne. Les clients peuvent voir leur véhicule avec leur code.</Text>
-            <Btn kind="secondary" title="Envoyer les véhicules du téléphone" icon="cloud-upload-outline" loading={busy === 'push'} onPress={push} />
-            <Btn kind="ghost" title="Se déconnecter" icon="log-out-outline" onPress={() => store.signOut()} />
+            <Text style={T.sub}>Tes véhicules sont enregistrés en ligne. Les clients voient leur véhicule avec leur code.</Text>
+            {localN > 0 ? (
+              <Btn kind="secondary" title={'Envoyer les ' + localN + ' véhicule(s) du téléphone'} icon="cloud-upload-outline" loading={busy === 'push'} onPress={push} />
+            ) : null}
           </>
         ) : (
           <>
-            <StatusPill level="warn" text="Non connecté : données sur ce téléphone" />
-            <Btn title="Se connecter" icon="log-in-outline" onPress={() => router.push('/connexion')} />
+            <StatusPill level="warn" text="Mode local (développement) : données sur ce téléphone" />
+            <Text style={T.sub}>La base en ligne n’est pas configurée dans cette version (voir LISEZMOI.md). Pense à faire des sauvegardes.</Text>
           </>
         )}
+        <Btn kind="danger" title={supabaseEnabled ? 'Se déconnecter' : 'Quitter l’espace pro'} icon="log-out-outline" onPress={logout} />
       </Card>
 
       <SectionTitle>Sauvegarde</SectionTitle>
@@ -136,15 +126,6 @@ export default function Reglages() {
           <Btn kind="secondary" small title="Exporter" icon="download-outline" style={{ flex: 1 }} loading={busy === 'export'} onPress={doExport} />
           <Btn kind="secondary" small title="Restaurer" icon="push-outline" style={{ flex: 1 }} loading={busy === 'import'} onPress={doImport} />
         </Row>
-      </Card>
-
-      <SectionTitle>Mode</SectionTitle>
-      <Card style={{ gap: 12 }}>
-        <Row>
-          <Ionicons name="construct" size={22} color={C.orange} />
-          <Text style={[T.body, { flex: 1 }]}>Mode garagiste</Text>
-        </Row>
-        <Btn kind="secondary" title="Changer de mode" icon="swap-horizontal" onPress={changeMode} />
       </Card>
 
       <View style={{ alignItems: 'center', marginTop: 10, gap: 2 }}>

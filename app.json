@@ -12,8 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "fr.checkandcar.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Check & Car utilise l'appareil photo pour photographier la carte grise du véhicule.",
-        "NSPhotoLibraryUsageDescription": "Check & Car accède à tes photos pour choisir la photo de la carte grise."
+        "NSCameraUsageDescription": "Check & Car utilise l'appareil photo pour photographier la carte grise ou un rapport de diagnostic.",
+        "NSPhotoLibraryUsageDescription": "Check & Car accède à tes photos pour choisir la carte grise ou un rapport de diagnostic."
       }
     },
     "android": {
@@ -42,8 +42,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Check & Car accède à tes photos pour choisir la photo de la carte grise.",
-          "cameraPermission": "Check & Car utilise l'appareil photo pour photographier la carte grise du véhicule."
+          "photosPermission": "Check & Car accède à tes photos pour choisir la carte grise ou un rapport de diagnostic.",
+          "cameraPermission": "Check & Car utilise l'appareil photo pour photographier la carte grise ou un rapport de diagnostic."
         }
       ]
     ],

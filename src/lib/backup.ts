@@ -4,14 +4,16 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { upgradeVehicle } from './db';
+import { docsForBackup } from './docs';
 import { toDataUri } from './photos';
 import type { Garage, Vehicle } from './types';
 import { today } from './utils';
 
 export async function exportBackup(vehicles: Vehicle[], garage: Garage) {
-  // les photos sont mises dans le fichier (base64) pour pouvoir les retrouver sur un autre téléphone
-  const vs = await Promise.all(vehicles.map(async v => ({ ...v, photoCg: await toDataUri(v.photoCg) })));
-  const json = JSON.stringify({ app: 'Check & Car', version: 3, date: today(), garage, vehicles: vs }, null, 1);
+  // les photos et les documents restés sur le téléphone sont mis dans le fichier (base64) pour pouvoir
+  // les retrouver sur un autre téléphone. Les documents en ligne gardent leur chemin (ils restent dans Supabase).
+  const vs = await Promise.all(vehicles.map(async v => ({ ...v, photoCg: await toDataUri(v.photoCg), docs: await docsForBackup(v.docs) })));
+  const json = JSON.stringify({ app: 'Check & Car', version: 4, date: today(), garage, vehicles: vs }, null, 1);
   const name = 'check-and-car-' + today() + '.json';
   if (Platform.OS === 'web') {
     const a = document.createElement('a');
@@ -23,7 +25,7 @@ export async function exportBackup(vehicles: Vehicle[], garage: Garage) {
   const f = new File(Paths.cache, name);
   if (f.exists) f.delete();
   f.create();
-  f.write(json);
+  await f.write(json);
   await Sharing.shareAsync(f.uri, { mimeType: 'application/json', UTI: 'public.json', dialogTitle: 'Sauvegarde Check & Car' });
 }
 

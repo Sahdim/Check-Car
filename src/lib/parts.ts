@@ -4,14 +4,18 @@ import type { Item } from './types';
 export const PART_SECTIONS: { title: string; parts: string[] }[] = [
   { title: 'Entretien', parts: ['Vidange', 'Filtre à huile', 'Filtre à air', 'Filtre habitacle', 'Filtre à carburant', 'Liquide de refroidissement', 'Essuie-glaces'] },
   { title: 'Freinage', parts: ['Plaquettes AV', 'Plaquettes AR', 'Disques AV', 'Disques AR', 'Mâchoires / tambours', 'Liquide de frein'] },
-  { title: 'Pneus & train avant', parts: ['Pneus AV', 'Pneus AR', 'Géométrie / parallélisme'] },
+  { title: 'Pneus & train avant', parts: ['Pneus AV', 'Pneus AR', 'Parallélisme', 'Géométrie', 'Équilibrage', 'Permutation des pneus'] },
   { title: 'Moteur & distribution', parts: ['Bougies', 'Bougies de préchauffage', 'Courroie de distribution', 'Kit distribution + pompe à eau', 'Chaîne de distribution', "Courroie d'accessoires", 'Embrayage', 'Volant moteur', 'Échappement'] },
   { title: 'Suspension & direction', parts: ['Amortisseurs AV', 'Amortisseurs AR', 'Rotules', 'Biellettes', 'Triangles', 'Silent-blocs', 'Cardan / soufflet'] },
   { title: 'Électricité', parts: ['Batterie', 'Démarreur', 'Alternateur', 'Ampoules', 'Climatisation'] },
-  { title: 'Divers', parts: ['Contrôle technique', 'Diagnostic', 'Autre'] },
+  { title: 'Divers', parts: ['Contrôle technique', 'Diagnostic', 'Parallélisme', 'Géométrie', 'Équilibrage', 'Permutation des pneus', 'Autre'] },
 ];
 
-export const ALL_PARTS = PART_SECTIONS.flatMap(s => s.parts);
+// Liste sans doublons (Parallélisme, Géométrie… apparaissent dans deux sections)
+export const ALL_PARTS = [...new Set(PART_SECTIONS.flatMap(s => s.parts))];
+
+// Anciens libellés toujours acceptés (affichés tels quels dans l'historique)
+export const LEGACY_PARTS = ['Géométrie / parallélisme'];
 
 // Liste des éléments d'une intervention (nouveau format `parts`, sinon l'ancien `kind`)
 export const itemParts = (i: Item): string[] =>

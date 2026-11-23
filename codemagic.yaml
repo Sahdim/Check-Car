@@ -7,6 +7,10 @@ workflows:
       xcode: latest
       node: 22
       cocoapods: default
+      vars:
+        # Clé PUBLIQUE Supabase (prévue pour être dans l'appli ; la sécurité est faite par les règles de la base)
+        EXPO_PUBLIC_SUPABASE_URL: https://mhjampovczwhysxkyzip.supabase.co
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_A3T33DhzDan6pTM50eZEXA_IVsUGcPh
     scripts:
       - name: Installer les dependances
         script: npm ci

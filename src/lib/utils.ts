@@ -107,8 +107,8 @@ export const MARQUES = ['Renault', 'Peugeot', 'Citroën', 'Dacia', 'DS', 'Volksw
 
 export const normBrand = (b: string) => {
   const t = String(b || '').trim();
-  const n = norm(t);
-  return MARQUES.find(m => norm(m) === n) || t;
+  const k = (x: string) => norm(x).replace(/[^a-z0-9]/g, ''); // « MERCEDES BENZ » = « Mercedes-Benz »
+  return MARQUES.find(m => k(m) === k(t)) || t;
 };
 
 const GUESS: Record<string, string> = {

@@ -6,6 +6,8 @@ import { BottomTabBarHeightContext } from 'expo-router/tabs';
 import React, { useContext } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -190,23 +192,6 @@ export function StatusPill({ level, text }: { level: Level; text: string }) {
   );
 }
 
-/* ---------- Plaque d'immatriculation française ---------- */
-export function Plate({ plate, big }: { plate: string; big?: boolean }) {
-  if (!plate) return null;
-  const h = big ? 38 : 24;
-  return (
-    <View style={{ flexDirection: 'row', height: h, borderRadius: 5, overflow: 'hidden', backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#111', alignSelf: 'flex-start' }}>
-      <View style={{ width: big ? 20 : 13, backgroundColor: '#0A4AA8', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: big ? 3 : 1 }}>
-        <Text style={{ color: '#fff', fontSize: big ? 11 : 8, fontWeight: '700' }}>F</Text>
-      </View>
-      <View style={{ justifyContent: 'center', paddingHorizontal: big ? 12 : 7 }}>
-        <Text style={{ color: '#111', fontSize: big ? 21 : 13, fontWeight: '800', letterSpacing: big ? 1.5 : 0.8, fontVariant: ['tabular-nums'] }}>{plate}</Text>
-      </View>
-      <View style={{ width: big ? 20 : 13, backgroundColor: '#0A4AA8' }} />
-    </View>
-  );
-}
-
 /* ---------- Champs de saisie ---------- */
 export function Field({
   label,
@@ -260,5 +245,53 @@ export function Fact({ label, value, mono }: { label: string; value: string; mon
         {value}
       </Text>
     </View>
+  );
+}
+
+/* ---------- Messages ---------- */
+export const notify = (title: string, msg?: string) => {
+  if (Platform.OS === 'web') window.alert(msg ? title + '\n' + msg : title);
+  else Alert.alert(title, msg);
+};
+
+/** Demande de confirmation (Annuler / bouton d'action) */
+export const ask = (title: string, msg: string, ok: string, go: () => void, destructive = false) => {
+  if (Platform.OS === 'web') {
+    if (window.confirm(title + (msg ? '\n' + msg : ''))) go();
+  } else Alert.alert(title, msg || undefined, [{ text: 'Annuler', style: 'cancel' }, { text: ok, style: destructive ? 'destructive' : 'default', onPress: go }]);
+};
+
+/** Petit lien texte discret */
+export function TextLink({ title, onPress, color = C.text3, style }: { title: string; onPress: () => void; color?: string; style?: StyleProp<ViewStyle> }) {
+  return (
+    <Pressable accessibilityRole="link" hitSlop={10} onPress={onPress} style={({ pressed }) => [{ alignSelf: 'center', paddingVertical: 8, opacity: pressed ? 0.5 : 1 }, style]}>
+      <Text style={{ color, fontSize: 14, fontWeight: '500' }}>{title}</Text>
+    </Pressable>
+  );
+}
+
+/* ---------- Feuille (fenêtre qui monte du bas) ---------- */
+export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode }) {
+  const insets = useSafeAreaInsets();
+  const ios = Platform.OS === 'ios';
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle={ios ? 'pageSheet' : 'fullScreen'} onRequestClose={onClose} transparent={false}>
+      <View style={{ flex: 1, backgroundColor: ios ? C.card : C.bg, paddingTop: ios ? 0 : insets.top }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.sep }}>
+          <Text style={[T.body, { fontWeight: '700', flex: 1, fontSize: 17 }]} numberOfLines={1}>
+            {title}
+          </Text>
+          <Pressable accessibilityRole="button" hitSlop={10} onPress={onClose}>
+            <Text style={{ color: C.orange, fontSize: 17 }}>Fermer</Text>
+          </Pressable>
+        </View>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 32 }}>
+          {children}
+        </ScrollView>
+      </View>
+    </Modal>
   );
 }

@@ -4,7 +4,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, Pressable, Text, View } from 'react-native';
 import { Btn, Card, Empty, Field, Row, Screen, T, tap } from '@/components/ui';
-import { itemParts, PART_SECTIONS } from '@/lib/parts';
+import { ALL_PARTS, itemParts, PART_SECTIONS } from '@/lib/parts';
 import { useStore, useVehicle } from '@/lib/store';
 import { C } from '@/lib/theme';
 import type { Item } from '@/lib/types';
@@ -23,6 +23,8 @@ export default function InterventionForm() {
   const [price, setPrice] = useState(old?.price ? String(old.price).replace('.', ',') : '');
   const [note, setNote] = useState(old?.note || '');
   const [busy, setBusy] = useState(false);
+  // éléments cochés qui ne sont plus dans la liste (anciennes interventions)
+  const [legacy] = useState<string[]>(() => (old ? itemParts(old).filter(p => !ALL_PARTS.includes(p)) : []));
   const [err, setErr] = useState('');
 
   if (!v) {
@@ -45,8 +47,8 @@ export default function InterventionForm() {
     if (!parts.length && !note.trim()) return setErr('Coche au moins un élément ou écris une note.');
     const kmN = +km.replace(/\D/g, '') || 0;
     const priceN = Math.round((parseFloat(price.replace(',', '.').replace(/[^\d.]/g, '')) || 0) * 100) / 100;
-    // garde l'ordre de la liste
-    const ordered = PART_SECTIONS.flatMap(s => s.parts).filter(p => parts.includes(p));
+    // garde l'ordre de la liste ; les anciens libellés (ex. « Géométrie / parallélisme ») sont conservés à la fin
+    const ordered = [...ALL_PARTS.filter(p => parts.includes(p)), ...parts.filter(p => !ALL_PARTS.includes(p))];
     const finalParts = ordered.length ? ordered : ['Autre'];
     const item: Item = { id: old?.id || uid(), date: iso, kind: finalParts.join(', '), parts: finalParts, km: kmN, price: priceN, note: note.trim() };
     const items = old ? v.items.map(i => (i.id === old.id ? item : i)) : [item, ...v.items];
@@ -92,33 +94,24 @@ export default function InterventionForm() {
           {vTitle(v)} · {v.plate} · {fmtKm(v.km)}
         </Text>
 
+        {legacy.length ? (
+          <Card style={{ gap: 10 }}>
+            <Text style={T.label}>Éléments de l’ancienne version</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {legacy.map(p => (
+                <PartChip key={p} label={p} on={parts.includes(p)} onPress={() => toggle(p)} />
+              ))}
+            </View>
+          </Card>
+        ) : null}
+
         {PART_SECTIONS.map(s => (
           <Card key={s.title} style={{ gap: 10 }}>
             <Text style={T.label}>{s.title}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {s.parts.map(p => {
-                const on = parts.includes(p);
-                return (
-                  <Pressable
-                    key={p}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: on }}
-                    onPress={() => toggle(p)}
-                    style={({ pressed }) => ({
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 6,
-                      paddingHorizontal: 13,
-                      minHeight: 40,
-                      borderRadius: 999,
-                      backgroundColor: on ? '#FFFFFF' : C.card2,
-                      opacity: pressed ? 0.7 : 1,
-                    })}>
-                    {on ? <Ionicons name="checkmark-circle" size={17} color="#000" /> : null}
-                    <Text style={{ color: on ? '#000' : C.text, fontSize: 15, fontWeight: on ? '700' : '500' }}>{p}</Text>
-                  </Pressable>
-                );
-              })}
+              {s.parts.map(p => (
+                <PartChip key={p} label={p} on={parts.includes(p)} onPress={() => toggle(p)} />
+              ))}
             </View>
           </Card>
         ))}
@@ -150,5 +143,27 @@ export default function InterventionForm() {
         {old ? <Btn kind="danger" title="Supprimer l’intervention" icon="trash-outline" onPress={del} /> : null}
       </Screen>
     </>
+  );
+}
+
+function PartChip({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: on }}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 13,
+        minHeight: 40,
+        borderRadius: 999,
+        backgroundColor: on ? '#FFFFFF' : C.card2,
+        opacity: pressed ? 0.7 : 1,
+      })}>
+      {on ? <Ionicons name="checkmark-circle" size={17} color="#000" /> : null}
+      <Text style={{ color: on ? '#000' : C.text, fontSize: 15, fontWeight: on ? '700' : '500' }}>{label}</Text>
+    </Pressable>
   );
 }

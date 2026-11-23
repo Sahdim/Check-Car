@@ -16,7 +16,7 @@ const theme = {
 };
 
 function Root() {
-  const { ready } = useStore();
+  const { ready, isGarage } = useStore();
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);
@@ -31,13 +31,16 @@ function Root() {
   return (
     <Stack screenOptions={{ ...smallHeader, headerShown: false, headerBackTitle: 'Retour' }}>
       <Stack.Screen name="index" />
-      <Stack.Screen name="accueil" options={{ animation: 'fade' }} />
       <Stack.Screen name="(garage)" options={{ animation: 'fade' }} />
       <Stack.Screen name="client" options={{ animation: 'fade' }} />
-      <Stack.Screen name="vehicule/[id]" options={{ headerShown: true, title: '' }} />
-      <Stack.Screen name="vehicule-form" options={{ headerShown: true, presentation: modal, title: 'Véhicule' }} />
-      <Stack.Screen name="intervention" options={{ headerShown: true, presentation: modal, title: 'Intervention' }} />
-      <Stack.Screen name="connexion" options={{ headerShown: true, presentation: modal, title: 'Compte en ligne' }} />
+      {/* écrans de l'espace pro : inaccessibles sans connexion */}
+      <Stack.Protected guard={isGarage}>
+        <Stack.Screen name="vehicule/[id]" options={{ headerShown: true, title: '' }} />
+        <Stack.Screen name="vehicule-form" options={{ headerShown: true, presentation: modal, title: 'Véhicule' }} />
+        <Stack.Screen name="intervention" options={{ headerShown: true, presentation: modal, title: 'Intervention' }} />
+        <Stack.Screen name="code-releve" options={{ headerShown: true, presentation: modal, title: 'Code relevé' }} />
+      </Stack.Protected>
+      <Stack.Screen name="nouveau-mot-de-passe" options={{ headerShown: true, title: 'Nouveau mot de passe' }} />
     </Stack>
   );
 }

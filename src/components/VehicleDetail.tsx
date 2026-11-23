@@ -3,16 +3,18 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, Linking, Modal, Platform, Pressable, Share, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Linking, Modal, Pressable, Share, Text, View } from 'react-native';
 import { alerts } from '@/lib/alerts';
-import { findFiche } from '@/lib/fiches';
 import { itemParts } from '@/lib/parts';
 import { sharePdf } from '@/lib/pdf';
 import { C, R } from '@/lib/theme';
 import type { Garage, Vehicle } from '@/lib/types';
 import { BODIES, byDate, fmtDateShort, fmtEur, fmtKm, mkCode, vSub, vTitle } from '@/lib/utils';
-import { Btn, Card, Fact, HeroCard, IconBtn, Plate, PrioBadge, Row, SectionTitle, Sep, StatusPill, T, tap } from './ui';
+import { Documents } from './Documents';
+import { DtcSection } from './DtcSection';
+import { PlaqueFR } from './PlaqueFR';
+import { ask, Btn, Card, Fact, HeroCard, IconBtn, notify, PrioBadge, Row, SectionTitle, Sep, StatusPill, T, tap } from './ui';
 
 type Props = {
   v: Vehicle;
@@ -20,11 +22,6 @@ type Props = {
   readOnly?: boolean;
   onSave?: (v: Vehicle) => Promise<unknown>;
   onDelete?: () => void;
-};
-
-const notify = (title: string, msg?: string) => {
-  if (Platform.OS === 'web') window.alert(msg ? title + '\n' + msg : title);
-  else Alert.alert(title, msg);
 };
 
 export function VehicleDetail({ v, garage, readOnly, onSave, onDelete }: Props) {
@@ -52,13 +49,12 @@ export function VehicleDetail({ v, garage, readOnly, onSave, onDelete }: Props) 
     notify('Code copié', v.code);
   };
   const shareCode = () => Share.share({ message: shareMsg }).catch(() => {});
-  const regen = () => {
-    const go = () => onSave?.({ ...v, code: mkCode() }).then(() => tap('success'));
-    const msg = 'L’ancien code ne marchera plus. Le client devra entrer le nouveau.';
-    if (Platform.OS === 'web') {
-      if (window.confirm('Régénérer le code ?\n' + msg)) go();
-    } else Alert.alert('Régénérer le code ?', msg, [{ text: 'Annuler', style: 'cancel' }, { text: 'Régénérer', onPress: go }]);
-  };
+  const regen = () =>
+    ask('Régénérer le code ?', 'L’ancien code ne marchera plus. Le client devra entrer le nouveau.', 'Régénérer', () =>
+      onSave?.({ ...v, code: mkCode() })
+        .then(() => tap('success'))
+        .catch((e: any) => notify('Impossible', e?.message)),
+    );
 
   return (
     <>
@@ -75,7 +71,7 @@ export function VehicleDetail({ v, garage, readOnly, onSave, onDelete }: Props) 
           </View>
         </Row>
         <View style={{ marginTop: 14 }}>
-          <Plate plate={v.plate} big />
+          <PlaqueFR plate={v.plate} dept={v.dept} size="lg" />
         </View>
         <Row style={{ marginTop: 16, flexWrap: 'wrap' }}>
           <Fact label="Kilométrage" value={fmtKm(v.km)} />
@@ -120,7 +116,6 @@ export function VehicleDetail({ v, garage, readOnly, onSave, onDelete }: Props) 
       ) : null}
       <Btn kind="secondary" title="Carnet pour la revente (PDF)" icon="document-text-outline" loading={pdfBusy} onPress={pdf} />
 
-      <FicheTechnique v={v} />
 
       {!readOnly && v.photoCg ? (
         <>
@@ -193,6 +188,10 @@ export function VehicleDetail({ v, garage, readOnly, onSave, onDelete }: Props) 
         ) : null}
       </Card>
 
+      <DtcSection v={v} readOnly={readOnly} onSave={onSave} />
+
+      <Documents v={v} readOnly={readOnly} onSave={onSave} />
+
       {!readOnly ? (
         <>
           <SectionTitle>Code client</SectionTitle>
@@ -211,51 +210,5 @@ export function VehicleDetail({ v, garage, readOnly, onSave, onDelete }: Props) 
         </>
       ) : null}
     </>
-  );
-}
-
-function FicheTechnique({ v }: { v: Vehicle }) {
-  const f = findFiche(v);
-  return (
-    <>
-      <SectionTitle>Fiche technique</SectionTitle>
-      <Card style={{ gap: 12 }}>
-        {!f ? (
-          <Row>
-            <Ionicons name="construct-outline" size={22} color={C.text3} />
-            <Text style={[T.sub, { flex: 1 }]}>Pas encore de fiche pour ce modèle et ce moteur. Elle s’affichera ici automatiquement quand elle sera disponible.</Text>
-          </Row>
-        ) : (
-          <>
-            {f.exemple ? (
-              <Row gap={8}>
-                <PrioBadge label="EXEMPLE" />
-                <Text style={[T.sub, { color: C.yellow }]}>Exemple, données à venir</Text>
-              </Row>
-            ) : null}
-            {f.huile ? <Line icon="water" color={C.orange} label="Huile moteur" value={[f.huile.viscosite, f.huile.norme, f.huile.quantite].filter(Boolean).join(' · ')} /> : null}
-            {f.pneus ? <Line icon="ellipse-outline" color={C.text2} label="Pneus d’origine" value={f.pneus} /> : null}
-            {f.pression ? <Line icon="speedometer" color={C.sky} label="Pression" value={f.pression} /> : null}
-            {f.distribution ? <Line icon="cog" color={C.blue} label="Distribution" value={[f.distribution.type, f.distribution.intervalle].filter(Boolean).join(' · ')} /> : null}
-            {f.couple_roues ? <Line icon="build" color={C.green} label="Serrage des roues" value={f.couple_roues} /> : null}
-            {f.batterie ? <Line icon="battery-half" color={C.yellow} label="Batterie" value={f.batterie} /> : null}
-          </>
-        )}
-      </Card>
-    </>
-  );
-}
-
-function Line({ icon, color, label, value }: { icon: keyof typeof Ionicons.glyphMap; color: string; label: string; value: string }) {
-  return (
-    <Row>
-      <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: C.card2, alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name={icon} size={18} color={color} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={T.tiny}>{label}</Text>
-        <Text style={[T.body, { fontWeight: '600' }]}>{value}</Text>
-      </View>
-    </Row>
   );
 }
