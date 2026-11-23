@@ -12,6 +12,11 @@ alter table public.vehicles add column if not exists dept text  not null default
 
 -- Le client (anonyme) ne lit JAMAIS la table directement : seulement la fonction ci-dessous
 revoke all on public.vehicles from anon;
+-- Projets Supabase récents : les tables ne sont plus ouvertes automatiquement aux comptes connectés.
+-- On donne l'accès au rôle « authenticated » ; les règles RLS ci-dessus limitent toujours chaque garagiste à ses véhicules.
+grant select, insert, update, delete on public.vehicles to authenticated;
+grant select, insert, update, delete on public.vehicles to service_role;
+
 
 -- Accès client : avec son code, le client voit UNIQUEMENT son véhicule.
 -- SECURITY DEFINER = la fonction passe outre la sécurité ci-dessus, mais ne renvoie
